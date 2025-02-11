@@ -15,8 +15,7 @@ df = pd.read_excel("/Users/vedant/Documents/Python/Google Sheets Book Tracker/Bo
 df = df.iloc[:, 0:18]  
 df = df.dropna(how="all")  
 df["Rating"] = pd.to_numeric(df["Rating"], errors="coerce")
-
-df_filtered = df[["Status"] + df.columns[:2].tolist()]  
+df["Book Link"] = df["Book"].apply(lambda book: f"/book/{book.replace(' ', '_')}")
 
 
 """
@@ -25,9 +24,58 @@ df_filtered = df[["Status"] + df.columns[:2].tolist()]
 ==================================================
 """
 
-app = Dash()
+app = Dash(suppress_callback_exceptions=True)
+
 
 app.layout = html.Div([
+    dcc.Location(id="url", refresh=False),  # Tracks URL changes
+    html.Div(id="page-content"),  # Placeholder for different pages (content changes here)
+])
+
+"""
+==================================================
+3. DASH CALLBACKS
+==================================================
+"""
+
+# Callback to display the correct page based on the URL
+@app.callback(
+    Output("page-content", "children"),
+    Input("url", "pathname")
+)
+def display_page(pathname):
+    if pathname.startswith("/book/"):
+        book_name = pathname.split("/book/")[1].replace("_", " ")
+        book_data = df[df["Book"] == book_name]
+
+        if book_data.empty:
+            return html.H1("Book Not Found")
+
+        book_info = book_data.iloc[0]
+        
+        return html.Div([
+            html.H1(book_info["Book"], style={"textAlign": "center"}),
+            html.Hr(),
+            html.H3(f"Author: {book_info['Author']}"),
+            html.H3(f"Status: {book_info['Status']}"),
+            html.H3(f"Recommendation: {book_info['Rec?']}"),
+            html.H3(f"Recommended By: {book_info['Recommended By']}"),
+            html.H3(f"Start Date: {book_info['Start Date']}"),
+            html.H3(f"End Date: {book_info['End Date']}"),
+            html.P(f"Summary: {book_info['Summary']}"),
+            html.P(f"Core Themes: {book_info['Core Themes']}"),
+            html.P(f"Review: {book_info['Review']}"),
+            html.P(f"What I Gained from Reading: {book_info['What I gained from reading']}"),
+            html.P(f"Story Behind Finding the Book: {book_info['Story behind finding the book']}"),
+            html.H3(f"Genre: {book_info['Genre']}"),
+            html.H3(f"Personal Collection: {book_info['Personal Collection?']}"),
+            html.H3(f"Series/Standalone: {book_info['Series/Standalone?']}"),
+            html.H3(f"Page Count: {book_info['Page Ct.']}"),
+            html.A("Back to Home", href="/"),
+        ])
+
+    else:
+        return html.Div([
     html.H1("Local Book Tracking Analytics Dashboard", style={"textAlign": "center", "fontFamily": "Arial, sans-serif"}),  
     html.Hr(),  
 
@@ -60,9 +108,16 @@ html.Div([
 
 html.Hr(),
 
-        # Table
+    # Table
     dash_table.DataTable(
-        data=df_filtered.to_dict("records"), 
+                data=df.assign(**{"Book Link": df["Book Link"].apply(lambda x: f"[More Info]({x})")}).to_dict("records"),                columns=[
+                    {"name": "Status", "id": "Status"},
+                    {"name": "Book", "id": "Book"},
+                    {"name": "Author", "id": "Author"},
+                    {"name": "Rating", "id": "Rating"},
+                    {"name": "Recommended By", "id": "Recommended By"},
+                    {"name": "More Info", "id": "Book Link", "presentation": "markdown"},
+                ],
         id="MainBookTable",
         style_table={"width": "80%", "margin": "auto"},  
         style_data={"fontFamily": "Arial, sans-serif", "fontSize": "14px", "fontWeight": "bold", "textAlign": "center"},
@@ -83,11 +138,6 @@ html.Hr(),
 
 ])
 
-"""
-==================================================
-3. DASH CALLBACKS
-==================================================
-"""
 
 @callback(
     Output("MainBookTable", "data"),  
@@ -96,14 +146,18 @@ html.Hr(),
 def update_table(status_values, rec_values):
     # If both "Yes" and "No" are selected, show both
     if not rec_values:  # If no values selected, show all
-        df_filtered1 = df[df["Status"].isin(status_values)]
+        df_filtered = df[df["Status"].isin(status_values)]
     else:
         # Filter based on selected recommendations (Yes and/or No)
-        df_filtered1 = df[(df["Status"].isin(status_values)) & (df["Rec?"].isin(rec_values))]
+        df_filtered = df[(df["Status"].isin(status_values)) & (df["Rec?"].isin(rec_values))]
     
     # Ensure we keep only the relevant columns for display
-    df_filtered1 = df_filtered1[["Status", "Book", "Author", "Rating", "Recommended By"]]  # Selecting specific columns
-    return df_filtered1.to_dict("records")
+    df_filtered = df_filtered[["Status", "Book", "Author", "Rating", "Recommended By", "Book Link"]]  # Selecting specific columns
+
+    # Format the Book Link as Markdown
+    df_filtered["Book Link"] = df_filtered["Book Link"].apply(lambda x: f"[More Info]({x})")
+
+    return df_filtered.to_dict("records")
 
 # Update visualization based on recommendation filter
 @callback(
@@ -171,11 +225,7 @@ def update_vis(rec_values):
     margin=dict(t=40, b=30, l=40, r=40),  # Reduce margins for compactness
     hovermode="closest"  # More responsive hover
     )
-
-    
-
     return vis
-
 
 if __name__ == "__main__":
     app.run(debug=True)
