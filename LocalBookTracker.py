@@ -29,6 +29,13 @@ month_options = [{"label": month, "value": month} for month in [
     "September", "October", "November", "December"
 ]]
 
+unique_genres = sorted(set(df["Genre"].dropna().str.split(", ").explode()))
+
+
+genre_options = [{"label": str(genre), "value": str(genre)} for genre in unique_genres]
+
+# print(unique_genres)
+
 
 df["Start Date"] = df["Start Date"].dt.strftime('%b %d, %Y')  
 df["End Date"] = df["End Date"].dt.strftime('%b %d, %Y')  
@@ -144,6 +151,16 @@ def display_page(pathname):
         ),
     ], style={"width": "75%", "margin": "auto", "display": "flex", "alignItems": "center", "gap": "10px"}),
 
+
+    # # Genre Dropdown
+    # html.Div([
+    #     html.Label("Genre:", style={"fontFamily": "Arial, sans-serif", "fontWeight": "bold", "fontSize": "16px", "width": "150px"}),
+    #     dcc.Dropdown(options = genre_options, 
+    #         multi=True, 
+    #         id="DropdownBookStatus", 
+    #         style={"width": "75%", "fontFamily": "Arial, sans-serif"}
+    #     )
+    # ], style={"width": "75%", "margin": "auto", "display": "flex", "alignItems": "center", "gap": "10px"}),
     html.Hr(),
 
     # Table
@@ -175,7 +192,6 @@ def display_page(pathname):
   
 ])
 
-
 @app.callback(
     Output("MainBookTable", "data"),
     [
@@ -185,24 +201,40 @@ def display_page(pathname):
         Input("month_dropdown", "value")
     ]
 )
-def update_table(status_values, rec_values, selected_years, selected_months):
-    # Filter by status and recommendation
-    if not rec_values:  # If no values selected for rec, show all
+def update_table(status_values, rec_values, selected_years, selected_months,):
+    # Filter by Status and Recommendation
+    if not rec_values:  
         filtered_df = df[df["Status"].isin(status_values)]
     else:
         filtered_df = df[(df["Status"].isin(status_values)) & (df["Rec?"].isin(rec_values))]
 
-    # Filter by year
+    # Filter by Year (Optional)
     if selected_years:
-        filtered_df = filtered_df[filtered_df["Start Year"].isin(selected_years) | filtered_df["End Year"].isin(selected_years)]
-
-    # Filter by month
-    if selected_months:
-        filtered_df = filtered_df[
-            ((filtered_df["Start Year"].isin(selected_years)) & (filtered_df["Start Month"].isin(selected_months))) | 
-            ((filtered_df["End Year"].isin(selected_years)) & (filtered_df["End Month"].isin(selected_months)))
+        filtered_df = filtered_df.loc[
+            (filtered_df["Start Year"].isin(selected_years)) | 
+            (filtered_df["End Year"].isin(selected_years))
         ]
-    
+
+    # Filter by Month (Only if Years are Selected)
+    if selected_months:
+        if selected_years:  # Ensure that year filtering is applied
+            filtered_df = filtered_df.loc[
+                ((filtered_df["Start Year"].isin(selected_years)) & (filtered_df["Start Month"].isin(selected_months))) | 
+                ((filtered_df["End Year"].isin(selected_years)) & (filtered_df["End Month"].isin(selected_months)))
+            ]
+        else:  # If no year selected, just filter by month alone
+            filtered_df = filtered_df.loc[
+                (filtered_df["Start Month"].isin(selected_months)) | 
+                (filtered_df["End Month"].isin(selected_months))
+            ]
+
+    # # Filter by Genre (Handle NaN Values)
+    # if selected_genres:
+    #     filtered_df = filtered_df.dropna(subset=["Genre"])  # Drop NaNs before applying filter
+    #     filtered_df = filtered_df[
+    #         filtered_df["Genre"].apply(lambda x: any(genre in x.split(", ") for genre in selected_genres))
+    #     ]
+
     # Format the Book Link as Markdown
     filtered_df["Book Link"] = filtered_df["Book Link"].apply(lambda x: f"[More Info]({x})")
 
