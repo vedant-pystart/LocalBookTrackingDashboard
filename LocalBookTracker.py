@@ -80,33 +80,33 @@ def display_page(pathname):
     html.Hr(),  
 
 # Book Status Label and Dropdown
-html.Div([
-    html.Label("Book Status:", style={"fontFamily": "Arial, sans-serif", "fontWeight": "bold", "fontSize": "16px", "width": "150px"}),
-    dcc.Dropdown(
-        ["Complete", "Reading", "To Be Read"], 
-        ["Complete"], 
-        multi=True, 
-        id="DropdownBookStatus", 
-        style={"width": "75%", "fontFamily": "Arial, sans-serif"}
-    )
-], style={"width": "75%", "margin": "auto", "display": "flex", "alignItems": "center", "gap": "10px"}),
+    html.Div([
+        html.Label("Book Status:", style={"fontFamily": "Arial, sans-serif", "fontWeight": "bold", "fontSize": "16px", "width": "150px"}),
+        dcc.Dropdown(
+            ["Complete", "Reading", "To Be Read"], 
+            ["Complete"], 
+            multi=True, 
+            id="DropdownBookStatus", 
+            style={"width": "75%", "fontFamily": "Arial, sans-serif"}
+        )
+    ], style={"width": "75%", "margin": "auto", "display": "flex", "alignItems": "center", "gap": "10px"}),
 
-# Recommendation Label and Dropdown
-html.Div([
-    html.Label("Recommendation:", style={"fontSize": "16px", "fontFamily": "Arial, sans-serif", "fontWeight": "bold", "width": "150px"}),
-    dcc.Dropdown(
-        id="rec-dropdown",
-        options=[
-            {"label": "Yes", "value": "Yes"},
-            {"label": "No", "value": "No"},
-        ],
-        value=["Yes"],  # Default to 'Yes'
-        multi=True,  # Allow multiple selection
-        style={"width": "75%", "fontFamily": "Arial, sans-serif"}
-    ),
-], style={"width": "75%", "margin": "auto", "display": "flex", "alignItems": "center", "gap": "10px"}),
+    # Recommendation Label and Dropdown
+    html.Div([
+        html.Label("Recommendation:", style={"fontSize": "16px", "fontFamily": "Arial, sans-serif", "fontWeight": "bold", "width": "150px"}),
+        dcc.Dropdown(
+            id="rec-dropdown",
+            options=[
+                {"label": "Yes", "value": "Yes"},
+                {"label": "No", "value": "No"},
+            ],
+            value=["Yes"],  # Default to 'Yes'
+            multi=True,  # Allow multiple selection
+            style={"width": "75%", "fontFamily": "Arial, sans-serif"}
+        ),
+    ], style={"width": "75%", "margin": "auto", "display": "flex", "alignItems": "center", "gap": "10px"}),
 
-html.Hr(),
+    html.Hr(),
 
     # Table
     dash_table.DataTable(
@@ -133,9 +133,6 @@ html.Hr(),
     dcc.Graph(id="ratings_histogram"),
     html.Hr(),
   
-    # Ratings Distribution Visualization
-
-
 ])
 
 
