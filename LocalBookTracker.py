@@ -16,7 +16,22 @@ df = df.iloc[:, 0:18]
 df = df.dropna(how="all")  
 df["Rating"] = pd.to_numeric(df["Rating"], errors="coerce")
 df["Book Link"] = df["Book"].apply(lambda book: f"/book/{book.replace(' ', '_')}")
+df["Start Date"] = pd.to_datetime(df["Start Date"], errors="coerce")
+df["End Date"] = pd.to_datetime(df["End Date"], errors="coerce")
+df["Start Year"] = df["Start Date"].dt.year
+df["Start Month"] = df["Start Date"].dt.month_name()
+df["End Year"] = df["End Date"].dt.year
+df["End Month"] = df["End Date"].dt.month_name()
 
+year_options = [{"label": str(int(year)), "value": int(year)} for year in sorted(df["Start Year"].dropna().unique())]
+month_options = [{"label": month, "value": month} for month in [
+    "January", "February", "March", "April", "May", "June", "July", "August", 
+    "September", "October", "November", "December"
+]]
+
+
+df["Start Date"] = df["Start Date"].dt.strftime('%b %d, %Y')  
+df["End Date"] = df["End Date"].dt.strftime('%b %d, %Y')  
 
 """
 ==================================================
@@ -106,6 +121,29 @@ def display_page(pathname):
         ),
     ], style={"width": "75%", "margin": "auto", "display": "flex", "alignItems": "center", "gap": "10px"}),
 
+    # Year Label
+    html.Div([
+        html.Label("Year:", style={"fontSize": "16px", "fontFamily": "Arial, sans-serif", "fontWeight": "bold", "width": "150px"}),
+        dcc.Dropdown(
+            id="year_dropdown",
+            options= year_options,
+            multi=True,
+            style={"width": "75%", "fontFamily": "Arial, sans-serif"}
+        ),
+    ], style={"width": "75%", "margin": "auto", "display": "flex", "alignItems": "center", "gap": "10px"}),
+
+    # Month Label
+
+        html.Div([
+        html.Label("Month:", style={"fontSize": "16px", "fontFamily": "Arial, sans-serif", "fontWeight": "bold", "width": "150px"}),
+        dcc.Dropdown(
+            id="month_dropdown",
+            options= month_options,
+            multi=True,
+            style={"width": "75%", "fontFamily": "Arial, sans-serif"}
+        ),
+    ], style={"width": "75%", "margin": "auto", "display": "flex", "alignItems": "center", "gap": "10px"}),
+
     html.Hr(),
 
     # Table
@@ -116,6 +154,8 @@ def display_page(pathname):
                     {"name": "Author", "id": "Author"},
                     {"name": "Rating", "id": "Rating"},
                     {"name": "Recommended By", "id": "Recommended By"},
+                    {"name": "Start Date", "id": "Start Date"},
+                    {"name": "End Date", "id": "End Date"},
                     {"name": "More Info", "id": "Book Link", "presentation": "markdown"},
                 ],
         id="MainBookTable",
@@ -136,37 +176,64 @@ def display_page(pathname):
 ])
 
 
-@callback(
-    Output("MainBookTable", "data"),  
-    [Input("DropdownBookStatus", "value"), Input("rec-dropdown", "value") ] 
+@app.callback(
+    Output("MainBookTable", "data"),
+    [
+        Input("DropdownBookStatus", "value"),
+        Input("rec-dropdown", "value"),
+        Input("year_dropdown", "value"),
+        Input("month_dropdown", "value")
+    ]
 )
-def update_table(status_values, rec_values):
-    # If both "Yes" and "No" are selected, show both
-    if not rec_values:  # If no values selected, show all
-        df_filtered = df[df["Status"].isin(status_values)]
+def update_table(status_values, rec_values, selected_years, selected_months):
+    # Filter by status and recommendation
+    if not rec_values:  # If no values selected for rec, show all
+        filtered_df = df[df["Status"].isin(status_values)]
     else:
-        # Filter based on selected recommendations (Yes and/or No)
-        df_filtered = df[(df["Status"].isin(status_values)) & (df["Rec?"].isin(rec_values))]
+        filtered_df = df[(df["Status"].isin(status_values)) & (df["Rec?"].isin(rec_values))]
+
+    # Filter by year
+    if selected_years:
+        filtered_df = filtered_df[filtered_df["Start Year"].isin(selected_years) | filtered_df["End Year"].isin(selected_years)]
+
+    # Filter by month
+    if selected_months:
+        filtered_df = filtered_df[
+            ((filtered_df["Start Year"].isin(selected_years)) & (filtered_df["Start Month"].isin(selected_months))) | 
+            ((filtered_df["End Year"].isin(selected_years)) & (filtered_df["End Month"].isin(selected_months)))
+        ]
     
-    # Ensure we keep only the relevant columns for display
-    df_filtered = df_filtered[["Status", "Book", "Author", "Rating", "Recommended By", "Book Link"]]  # Selecting specific columns
-
     # Format the Book Link as Markdown
-    df_filtered["Book Link"] = df_filtered["Book Link"].apply(lambda x: f"[More Info]({x})")
+    filtered_df["Book Link"] = filtered_df["Book Link"].apply(lambda x: f"[More Info]({x})")
 
-    return df_filtered.to_dict("records")
+    return filtered_df.to_dict("records")
 
 # Update visualization based on recommendation filter
 @callback(
     Output("ratings_histogram", "figure"),
-    Input("rec-dropdown", "value")
+    Input("rec-dropdown", "value"),
+    Input("year_dropdown", "value"),  # Year filter
+    Input("month_dropdown", "value")  # Month filter
 )
-def update_vis(rec_values):
+def update_vis(rec_values, year_values, month_values):
     if "All" in rec_values or not rec_values:  
         dfvis1 = df
     else:
         # Filter based on selected values for 'Rec?'
         dfvis1 = df[df["Rec?"].isin(rec_values)]
+
+    if not year_values or "All" in year_values:  # Check for None or empty
+        dfvis1 = dfvis1  # No filtering on Year
+    else:
+        # Filter based on both Start Year and End Year
+        dfvis1 = dfvis1[dfvis1["Start Year"].isin(year_values) | dfvis1["End Year"].isin(year_values)]
+
+    if not month_values or "All" in month_values:  # Check for None or empty
+        dfvis1 = dfvis1  # No filtering on Year
+    else:
+        # Filter based on both Start Year and End Year
+        dfvis1 = dfvis1[dfvis1["Start Month"].isin(month_values) | dfvis1["End Month"].isin(month_values)]
+
 
     # Categorize the ratings into buckets (you can adjust ranges as needed)
     rating_bins = pd.cut(dfvis1['Rating'], bins=[0, 5, 7, 10], labels=["Low", "Medium", "High"])
