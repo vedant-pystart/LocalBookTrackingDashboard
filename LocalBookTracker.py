@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-df = pd.read_excel('Google Sheets Book Tracker/Book Log.xlsx')
+df = pd.read_excel('GIT Local Book Tracker/Book Log.xlsx')
 
 
 """
